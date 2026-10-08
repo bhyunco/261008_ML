@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 from sklearn.tree import DecisionTreeRegressor
-from flask import Flask, render_template, jsonify, request, Response, send_file
+from flask import Flask, render_template, jsonify, request, Response, send_file, send_from_directory
 import requests
 import kosis_collector
 
@@ -424,6 +424,19 @@ def train_and_predict_decision_tree(coin_code="BTC"):
 @app.route("/api/index.py")
 def index():
     return render_template("index.html")
+
+@app.route("/static/<path:filename>")
+def serve_static(filename):
+    return send_from_directory(os.path.join(BASE_DIR, "static"), filename)
+
+@app.errorhandler(404)
+def handle_404(e):
+    if request.path.startswith("/static/"):
+        rel_path = request.path.replace("/static/", "", 1)
+        return send_from_directory(os.path.join(BASE_DIR, "static"), rel_path)
+    if request.path.startswith("/api/") and request.path not in ["/api/index", "/api/index.py"]:
+        return jsonify({"success": False, "error": f"API endpoint not found: {request.path}"}), 404
+    return render_template("index.html"), 200
 
 @app.route("/api/coins")
 def get_coins_overview():
