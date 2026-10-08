@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="비트코인, 이더리움, 솔라나, 리플, 도지코인 등 대표 5대 가상자산의 10년 거래 데이터 실시간 분석, 기술적 지표(SMA, RSI), 5대 코인 수익률 비교 및 DecisionTree 기반 AI 미래 시세 예측 대시보드">
+    <title>글로벌 5대 대표 가상자산 10년 시세 분석 & 실시간 모니터링 대시보드</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js and date-fns adapter -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Background glowing ambience -->
+    <div class="ambient-glow glow-1" id="ambientGlow1"></div>
+    <div class="ambient-glow glow-2" id="ambientGlow2"></div>
+
+    <div class="dashboard-wrapper">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo-box" id="headerLogoBox">
+                    <i class="fa-brands fa-bitcoin coin-main-icon" id="headerCoinIcon"></i>
+                </div>
+                <div class="title-meta">
+                    <div class="title-row">
+                        <h1 id="headerMainTitle">글로벌 5대 가상자산 10년 시세 분석기</h1>
+                        <span class="badge coin-badge" id="headerCoinBadge">BTC/USD</span>
+                        <span class="badge live-badge">
+                            <span class="live-dot"></span> LIVE
+                        </span>
+                    </div>
+                    <p class="subtitle" id="headerSubtitle">Yahoo Finance 실시간 10년 거래 데이터 분석, 기술적 지표, 다중 자산 비교 & AI 미래 시세 예측</p>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <div class="update-info-card">
+                    <div class="update-label">
+                        <i class="fa-regular fa-clock"></i> 마지막 데이터 갱신
+                    </div>
+                    <div id="lastUpdated" class="update-time">불러오는 중...</div>
+                </div>
+
+                <!-- Auto Refresh Selector -->
+                <div class="auto-refresh-box">
+                    <label for="autoRefreshSelect"><i class="fa-solid fa-repeat"></i> 자동 갱신</label>
+                    <select id="autoRefreshSelect">
+                        <option value="0">수동</option>
+                        <option value="30">30초</option>
+                        <option value="60" selected>1분</option>
+                        <option value="300">5분</option>
+                    </select>
+                </div>
+
+                <!-- Realtime Update Button -->
+                <button id="btnRefresh" class="btn btn-primary" title="현재 선택된 코인의 최신 데이터를 즉시 갱신합니다">
+                    <i class="fa-solid fa-arrows-rotate refresh-icon"></i>
+                    <span id="btnRefreshText">실시간 업데이트</span>
+                </button>
+
+                <!-- CSV Download Button -->
+                <a id="btnCsvDownload" href="/api/download/csv?coin=BTC" class="btn btn-secondary" title="현재 코인의 10년치 전체 데이터를 CSV 파일로 다운로드합니다">
+                    <i class="fa-solid fa-download"></i>
+                    <span id="btnCsvText">CSV 다운로드</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- 5 Representative Coins Selector Bar -->
+        <section class="coin-selector-section" aria-label="대표 가상자산 5종 선택기">
+            <div class="coin-selector-header">
+                <div class="selector-title-box">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>대표 5대 암호화폐 선택</span>
+                </div>
+                <div class="selector-hint">원하는 코인을 클릭하여 실시간 차트 및 지표를 전환하세요</div>
+            </div>
+            <div class="coin-selector-grid" id="coinSelectorGrid">
+                <!-- Dynamically generated 5 coin cards (BTC, ETH, SOL, XRP, DOGE) -->
+            </div>
+        </section>
+
+        <!-- KPI Metrics Grid -->
+        <section class="kpi-grid">
+            <!-- Current Price -->
+            <div class="kpi-card" id="cardCurrentPrice">
+                <div class="kpi-header">
+                    <span class="kpi-title" id="kpiTitleCurrentPrice">현재 가격 (BTC/USD)</span>
+                    <i class="fa-solid fa-arrow-trend-up kpi-icon"></i>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value" id="kpiCurrentPrice">--</span>
+                    <span class="currency-unit">USD</span>
+                </div>
+                <div class="kpi-subtext-row">
+                    <span id="kpiChangeBadge" class="price-change-pill">--</span>
+                    <span class="krw-estimate" id="kpiKrwPrice">약 -- 원</span>
+                </div>
+            </div>
+
+            <!-- 10Y High -->
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-title">10년 최고가 (All-Time High)</span>
+                    <i class="fa-solid fa-crown kpi-icon gold"></i>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value" id="kpi10yHigh">--</span>
+                    <span class="currency-unit">USD</span>
+                </div>
+                <div class="kpi-subtext-row">
+                    <span class="kpi-meta-date" id="kpiHighDate"><i class="fa-regular fa-calendar-check"></i> --</span>
+                </div>
+            </div>
+
+            <!-- 10Y Low -->
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-title">10년 최저가</span>
+                    <i class="fa-solid fa-anchor kpi-icon blue"></i>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value" id="kpi10yLow">--</span>
+                    <span class="currency-unit">USD</span>
+                </div>
+                <div class="kpi-subtext-row">
+                    <span class="kpi-meta-date" id="kpiLowDate"><i class="fa-regular fa-calendar-check"></i> --</span>
+                </div>
+            </div>
+
+            <!-- 10Y Total Return -->
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-title">10년 누적 수익률</span>
+                    <i class="fa-solid fa-chart-line-up kpi-icon green"></i>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value text-green" id="kpi10yReturn">--</span>
+                </div>
+                <div class="kpi-subtext-row">
+                    <span class="kpi-meta-sub" id="kpiStartPrice">시작일 기준: $--</span>
+                </div>
+            </div>
+
+            <!-- 24h Volume -->
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-title">24시간 거래대금 (Volume)</span>
+                    <i class="fa-solid fa-coins kpi-icon orange"></i>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value" id="kpiVolume24h">--</span>
+                </div>
+                <div class="kpi-subtext-row">
+                    <span class="kpi-meta-sub" id="kpiAvgVol30d">30일 평균: --</span>
+                </div>
+            </div>
+
+            <!-- RSI 14 -->
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-title">RSI (14일 상대강도)</span>
+                    <i class="fa-solid fa-gauge-high kpi-icon purple"></i>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value" id="kpiRsi">--</span>
+                    <span class="rsi-status-badge" id="rsiStatusBadge">중립</span>
+                </div>
+                <div class="rsi-meter-container">
+                    <div class="rsi-meter-fill" id="rsiMeterFill" style="width: 50%;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Chart Section -->
+        <main class="chart-section">
+            <div class="chart-card">
+                <!-- Active Coin Info Strip -->
+                <div class="active-coin-banner">
+                    <div class="banner-left">
+                        <span class="banner-name" id="bannerCoinName">비트코인 (BTC)</span>
+                        <span class="banner-desc" id="bannerCoinTagline">디지털 금 · 시가총액 1위 가상자산 대장주</span>
+                    </div>
+                    <div class="banner-right">
+                        <span class="data-range-info" id="bannerDataRange">10년간 일봉 데이터 분석</span>
+                    </div>
+                </div>
+
+                <!-- Chart Toolbar Controls -->
+                <div class="chart-toolbar">
+                    <!-- Timeframe buttons -->
+                    <div class="toolbar-group">
+                        <span class="group-label">기간:</span>
+                        <div class="btn-toggle-group" id="rangeToggleGroup">
+                            <button class="toggle-btn" data-range="1m">1개월</button>
+                            <button class="toggle-btn" data-range="6m">6개월</button>
+                            <button class="toggle-btn" data-range="1y">1년</button>
+                            <button class="toggle-btn" data-range="3y">3년</button>
+                            <button class="toggle-btn" data-range="5y">5년</button>
+                            <button class="toggle-btn active" data-range="all">10년 전체</button>
+                        </div>
+                    </div>
+
+                    <!-- Chart Type -->
+                    <div class="toolbar-group">
+                        <span class="group-label">차트 유형:</span>
+                        <div class="btn-toggle-group" id="chartTypeGroup">
+                            <button class="toggle-btn active" data-type="area">
+                                <i class="fa-solid fa-chart-area"></i> 면적 차트
+                            </button>
+                            <button class="toggle-btn" data-type="line">
+                                <i class="fa-solid fa-chart-line"></i> 라인 차트
+                            </button>
+                            <button class="toggle-btn" data-type="candlestick">
+                                <i class="fa-solid fa-chart-simple"></i> 바/고저차트
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Indicators and Scales -->
+                    <div class="toolbar-group indicators-group">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="chkSma50" checked>
+                            <span class="checkmark color-sma50"></span>
+                            <span class="lbl-text">50일 이평선(SMA)</span>
+                        </label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="chkSma200" checked>
+                            <span class="checkmark color-sma200"></span>
+                            <span class="lbl-text">200일 이평선(SMA)</span>
+                        </label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="chkLogScale">
+                            <span class="checkmark"></span>
+                            <span class="lbl-text" title="10년 장기 추세를 한눈에 확인하기에 최적입니다">로그 축(Log)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Chart Canvas Container -->
+                <div class="chart-canvas-box" id="chartContainer">
+                    <div class="chart-loading-overlay" id="chartLoading">
+                        <div class="spinner"></div>
+                        <p id="chartLoadingText">가상자산 10년 데이터를 불러오고 있습니다...</p>
+                    </div>
+                    <canvas id="cryptoMainChart"></canvas>
+                </div>
+
+                <!-- Sub Volume Chart -->
+                <div class="volume-chart-box">
+                    <div class="volume-header">
+                        <span><i class="fa-solid fa-chart-column"></i> 일일 거래대금 / 거래량 (Volume)</span>
+                        <span class="volume-sub" id="volumeSummaryText"></span>
+                    </div>
+                    <div class="volume-canvas-wrapper">
+                        <canvas id="cryptoVolumeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Secondary Section: Tabs (Historical Table, Insights, Comparison & AI Prediction) -->
+        <section class="bottom-section">
+            <div class="tab-header">
+                <button class="tab-btn active" data-tab="tabTable">
+                    <i class="fa-solid fa-table-list"></i> 최근 30일 시세 내역
+                </button>
+                <button class="tab-btn" data-tab="tabStats">
+                    <i class="fa-solid fa-brain"></i> 10년 데이터 통계 & 하이라이트
+                </button>
+                <button class="tab-btn highlight-tab" data-tab="tabCompare">
+                    <i class="fa-solid fa-chart-line"></i> 5대 코인 수익률 비교 차트
+                </button>
+                <button class="tab-btn ai-tab-btn" data-tab="tabForecast">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> AI 미래 시세 예측 (DecisionTree)
+                    <span class="tab-ai-pill">AI</span>
+                </button>
+                <button class="tab-btn kosis-tab-btn" data-tab="tabKosis">
+                    <i class="fa-solid fa-building-columns"></i> 🏛️ 거시경제 KOSIS 금리 통계
+                    <span class="tab-kosis-pill">KOSIS</span>
+                </button>
+            </div>
+
+            <!-- Tab 1: Table -->
+            <div class="tab-content active" id="tabTable">
+                <div class="table-container">
+                    <table class="data-table" id="recentDataTable">
+                        <thead>
+                            <tr>
+                                <th>날짜 (Date)</th>
+                                <th>종가 (Close)</th>
+                                <th>전일대비 변동</th>
+                                <th>시가 (Open)</th>
+                                <th>고가 (High)</th>
+                                <th>저가 (Low)</th>
+                                <th>거래량 (Volume)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentTableBody">
+                            <tr>
+                                <td colspan="7" class="text-center">데이터 로딩 중...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab 2: Stats & Highlights -->
+            <div class="tab-content" id="tabStats">
+                <div class="insights-grid">
+                    <div class="insight-card">
+                        <div class="insight-icon"><i class="fa-solid fa-calendar-days"></i></div>
+                        <div class="insight-content">
+                            <h4>수집 기간 및 일수</h4>
+                            <p id="insightPeriod">10년간 총 -- 일의 데이터셋</p>
+                            <span class="insight-desc" id="insightDatasetDesc">Yahoo Finance 일봉 데이터 정합성 검증 완료</span>
+                        </div>
+                    </div>
+
+                    <div class="insight-card">
+                        <div class="insight-icon"><i class="fa-solid fa-rocket"></i></div>
+                        <div class="insight-content">
+                            <h4>최저가 대비 최고가 상승폭</h4>
+                            <p id="insightMultiplier">-- 배 상승</p>
+                            <span class="insight-desc" id="insightMultiplierDesc">10년 최저점에서 최고점까지의 기록적인 랠리</span>
+                        </div>
+                    </div>
+
+                    <div class="insight-card">
+                        <div class="insight-icon"><i class="fa-solid fa-bolt"></i></div>
+                        <div class="insight-content">
+                            <h4>골든크로스 / 데드크로스 이평선 분석</h4>
+                            <p id="insightCross">분석 중...</p>
+                            <span class="insight-desc">50일 이동평균선과 200일 장기 이동평균선의 현재 교차 위치</span>
+                        </div>
+                    </div>
+
+                    <div class="insight-card">
+                        <div class="insight-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                        <div class="insight-content">
+                            <h4>실시간 데이터 무결성 보장</h4>
+                            <p>실시간 업데이트 지원</p>
+                            <span class="insight-desc">상단 [실시간 업데이트] 클릭 시 yfinance로부터 즉각 재동기화 수행</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: 5-Coin Return Comparison -->
+            <div class="tab-content" id="tabCompare">
+                <div class="compare-container">
+                    <div class="compare-header">
+                        <div class="compare-title-box">
+                            <h4><i class="fa-solid fa-arrows-split-up-and-left"></i> 대표 5대 가상자산 누적 수익률(%) 상대 비교</h4>
+                            <p>동일 시작 시점(0%)을 기준으로 각 코인의 기간별 가격 변동률을 직접 비교합니다.</p>
+                        </div>
+                        <div class="compare-range-group">
+                            <span class="group-label">비교 기간:</span>
+                            <div class="btn-toggle-group" id="compareRangeToggleGroup">
+                                <button class="toggle-btn" data-range="1m">1개월</button>
+                                <button class="toggle-btn" data-range="6m">6개월</button>
+                                <button class="toggle-btn active" data-range="1y">1년</button>
+                                <button class="toggle-btn" data-range="3y">3년</button>
+                                <button class="toggle-btn" data-range="5y">5년</button>
+                                <button class="toggle-btn" data-range="all">전체</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Leaderboard Cards -->
+                    <div class="leaderboard-grid" id="compareLeaderboard">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <!-- Comparison Chart Canvas -->
+                    <div class="compare-chart-box">
+                        <div class="chart-loading-overlay" id="compareLoading" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>5개 코인 비교 데이터를 계산 중입니다...</p>
+                        </div>
+                        <canvas id="cryptoCompareChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: AI Future Price Prediction (On-Demand) -->
+            <div class="tab-content" id="tabForecast">
+                <div class="forecast-container">
+                    <!-- Top Control Hero Banner -->
+                    <div class="forecast-hero-card">
+                        <div class="forecast-hero-info">
+                            <div class="forecast-title-badge">
+                                <i class="fa-solid fa-microchip"></i>
+                                <span>DecisionTreeRegressor AI 예측 엔진</span>
+                            </div>
+                            <h3><span id="forecastCoinTitle">비트코인(BTC)</span> 미래 시세 예측 모델</h3>
+                            <p class="forecast-subtitle">오늘 기준 5일간 과거 가격(D-1 ~ D-5)을 특성으로 머신러닝 학습하여 내일의 가격을 정밀 예측합니다.</p>
+                            
+                            <div class="forecast-specs-grid">
+                                <div class="spec-item">
+                                    <span class="spec-label"><i class="fa-solid fa-brain"></i> 모델 알고리즘</span>
+                                    <span class="spec-value">DecisionTreeRegressor</span>
+                                </div>
+                                <div class="spec-item">
+                                    <span class="spec-label"><i class="fa-solid fa-list-check"></i> 입력 피처(Feature)</span>
+                                    <span class="spec-value">D-1, D-2, D-3, D-4, D-5 가격</span>
+                                </div>
+                                <div class="spec-item">
+                                    <span class="spec-label"><i class="fa-solid fa-bullseye"></i> 예측 타깃(Target)</span>
+                                    <span class="spec-value">오늘(D-Day)의 종가</span>
+                                </div>
+                                <div class="spec-item">
+                                    <span class="spec-label"><i class="fa-solid fa-calendar-week"></i> 학습 세트 (Train)</span>
+                                    <span class="spec-value">3년 전 ~ 1년 전</span>
+                                </div>
+                                <div class="spec-item">
+                                    <span class="spec-label"><i class="fa-solid fa-flask"></i> 검증 세트 (Test)</span>
+                                    <span class="spec-value">1년 전 ~ 어제</span>
+                                </div>
+                                <div class="spec-item highlight">
+                                    <span class="spec-label"><i class="fa-solid fa-trophy"></i> 성능 평가 목표</span>
+                                    <span class="spec-value text-green">MAPE 5.0% 미만</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="forecast-action-box">
+                            <div class="action-hint">
+                                <i class="fa-solid fa-circle-info"></i> 클릭 시에만 실시간으로 모델 학습 및 예측을 수행합니다. (평소에는 대기 상태)
+                            </div>
+                            <button id="btnRunPrediction" class="btn btn-ai-run">
+                                <i class="fa-solid fa-bolt"></i>
+                                <span id="btnRunPredictionText">[BTC] 미래 시세 예측 실행</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Standby Empty State (Before User Clicks) -->
+                    <div class="forecast-empty-state" id="forecastEmptyState">
+                        <div class="empty-icon-box">
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+                        <h4>AI 미래 시세 예측 대기 상태</h4>
+                        <p>상단의 <strong>[미래 시세 예측 실행]</strong> 버튼을 클릭하시면 현재 선택된 코인의 실시간 머신러닝 학습이 시작됩니다.</p>
+                        <span class="empty-note">※ 평상시에는 불필요한 시스템 자원 낭비를 방지하기 위해 백그라운드 예측 연산이 정지되어 있습니다.</span>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div class="forecast-loading-state" id="forecastLoadingState" style="display: none;">
+                        <div class="spinner"></div>
+                        <h4>DecisionTreeRegressor 모델 학습 및 검증 진행 중...</h4>
+                        <p>3년 전 ~ 1년 전 데이터 학습 및 1년 전 ~ 어제 테스트셋 MAPE 평가를 수행하고 있습니다.</p>
+                    </div>
+
+                    <!-- Results Dashboard (After User Clicks) -->
+                    <div class="forecast-results-wrapper" id="forecastResults" style="display: none;">
+                        <!-- Spotlight Card: Tomorrow Forecast -->
+                        <div class="forecast-spotlight-card">
+                            <div class="spotlight-left">
+                                <div class="spotlight-badge">
+                                    <span class="pulse-dot-ai"></span>
+                                    <span id="forecastSpotlightDate">내일 예상 시세</span>
+                                </div>
+                                <div class="spotlight-price-row">
+                                    <span class="spotlight-price" id="forecastPriceTomorrow">--</span>
+                                    <span class="spotlight-unit">USD</span>
+                                </div>
+                                <div class="spotlight-sub-row">
+                                    <span class="price-change-pill" id="forecastChangePill">--</span>
+                                    <span class="spotlight-krw" id="forecastKrwTomorrow">약 -- 원</span>
+                                </div>
+                            </div>
+
+                            <div class="spotlight-right">
+                                <div class="spotlight-target-status" id="forecastTargetStatus">
+                                    <div class="target-status-badge success">
+                                        <i class="fa-solid fa-circle-check"></i> MAPE 목표 달성 (&lt; 5.0%)
+                                    </div>
+                                    <p id="forecastSummaryDesc">최근 5일간의 가격 흐름을 바탕으로 분석된 예상 가격입니다.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Metric Cards -->
+                        <div class="forecast-metrics-grid">
+                            <div class="f-metric-card">
+                                <div class="f-metric-header">
+                                    <span>MAPE (평균 절대 백분율 오차)</span>
+                                    <i class="fa-solid fa-gauge-high"></i>
+                                </div>
+                                <div class="f-metric-val" id="metricMape">--%</div>
+                                <div class="f-metric-sub text-green" id="metricMapeBadge"><i class="fa-solid fa-check"></i> 기준치(5% 미만) 충족</div>
+                            </div>
+                            <div class="f-metric-card">
+                                <div class="f-metric-header">
+                                    <span>MAE (평균 절대 오차)</span>
+                                    <i class="fa-solid fa-calculator"></i>
+                                </div>
+                                <div class="f-metric-val" id="metricMae">--</div>
+                                <div class="f-metric-sub">실제값과 예측값의 평균 차이</div>
+                            </div>
+                            <div class="f-metric-card">
+                                <div class="f-metric-header">
+                                    <span>RMSE (평균 제곱근 오차)</span>
+                                    <i class="fa-solid fa-chart-simple"></i>
+                                </div>
+                                <div class="f-metric-val" id="metricRmse">--</div>
+                                <div class="f-metric-sub">이상치 가중 정밀 오차 지표</div>
+                            </div>
+                            <div class="f-metric-card">
+                                <div class="f-metric-header">
+                                    <span>방향성 적중률 (Up/Down)</span>
+                                    <i class="fa-solid fa-arrows-up-down"></i>
+                                </div>
+                                <div class="f-metric-val" id="metricDirAcc">--%</div>
+                                <div class="f-metric-sub">전일 대비 상승/하락 일치율</div>
+                            </div>
+                        </div>
+
+                        <!-- Feature Importance & Model Metadata Grid -->
+                        <div class="forecast-detail-grid">
+                            <!-- Feature Importance Card -->
+                            <div class="f-card f-importance-card">
+                                <div class="f-card-header">
+                                    <h4><i class="fa-solid fa-bars-progress"></i> 피처 중요도 분석 (Feature Importance)</h4>
+                                    <span class="f-card-desc">D-1 ~ D-5 과거 가격이 내일 가격 예측에 미치는 기여율</span>
+                                </div>
+                                <div class="importance-list" id="forecastImportanceList">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+
+                            <!-- Model Info Summary Card -->
+                            <div class="f-card f-info-card">
+                                <div class="f-card-header">
+                                    <h4><i class="fa-solid fa-circle-nodes"></i> 모델 파라미터 & 데이터 구성</h4>
+                                    <span class="f-card-desc">의사결정나무 회귀 트리 분석 메타데이터</span>
+                                </div>
+                                <div class="info-list" id="forecastModelMetaList">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 1-Year Actual vs Predicted Chart -->
+                        <div class="f-chart-card">
+                            <div class="f-chart-header">
+                                <div class="f-chart-title">
+                                    <h4><i class="fa-solid fa-chart-line"></i> 최근 1년 실제 가격 vs 모델 검증 가격 (Actual vs Predicted)</h4>
+                                    <p>검증 세트(1년 전 ~ 어제)에 대한 DecisionTree 예측값과 실제값의 정합성 비교 및 내일 예상 지점</p>
+                                </div>
+                            </div>
+                            <div class="f-chart-canvas-box">
+                                <canvas id="cryptoForecastChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Macroeconomic KOSIS Interest Rate Statistics -->
+            <div class="tab-content" id="tabKosis">
+                <div class="kosis-container">
+                    <!-- Top Control Hero Banner -->
+                    <div class="kosis-hero-card">
+                        <div class="kosis-hero-info">
+                            <div class="kosis-title-badge">
+                                <i class="fa-solid fa-building-columns"></i>
+                                <span>KOSIS 국가통계포털 · 한국은행 Open API</span>
+                            </div>
+                            <h3>예금은행 고정 및 변동금리대출 비중 (신규취급액 기준)</h3>
+                            <p class="kosis-subtitle">
+                                한국은행(기관코드: 301, 통계표: DT_121Y010) 공식 OpenAPI를 연동하여 가계·기업·주택담보대출의 고정/변동금리 비중 데이터를 실시간 수집 및 엑셀(kosis.xlsx)로 저장합니다.
+                            </p>
+                            <div class="kosis-meta-tags">
+                                <span class="kosis-tag"><i class="fa-regular fa-clock"></i> 최신 기준월: <strong id="kosisLatestMonth">--</strong></span>
+                                <span class="kosis-tag"><i class="fa-solid fa-file-excel"></i> 저장 파일: <strong id="kosisFilename">kosis.xlsx</strong></span>
+                                <span class="kosis-tag"><i class="fa-solid fa-database"></i> 총 데이터: <strong id="kosisTotalRows">54건</strong></span>
+                            </div>
+                        </div>
+                        <div class="kosis-hero-actions">
+                            <a href="/api/kosis/download" class="action-btn btn-excel-download" id="btnKosisDownload">
+                                <i class="fa-solid fa-file-arrow-down"></i>
+                                <span>kosis.xlsx 엑셀 다운로드</span>
+                            </a>
+                            <button class="action-btn btn-kosis-refresh" id="btnKosisRefresh">
+                                <i class="fa-solid fa-rotate"></i>
+                                <span id="btnKosisRefreshText">KOSIS 데이터 갱신</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3-Column Highlights KPI Cards -->
+                    <div class="kosis-kpi-grid">
+                        <!-- Household Loans -->
+                        <div class="kosis-kpi-card">
+                            <div class="kosis-kpi-header">
+                                <span class="kosis-kpi-title"><i class="fa-solid fa-house-user"></i> 가계대출 금리 비중</span>
+                                <span class="kosis-kpi-badge" id="kosisHousBadge">최신</span>
+                            </div>
+                            <div class="kosis-rate-compare">
+                                <div class="rate-box float">
+                                    <span class="rate-lbl">변동금리</span>
+                                    <span class="rate-val text-down" id="kosisHousFloating">--%</span>
+                                </div>
+                                <div class="rate-divider">vs</div>
+                                <div class="rate-box fixed">
+                                    <span class="rate-lbl">고정금리</span>
+                                    <span class="rate-val text-green" id="kosisHousFixed">--%</span>
+                                </div>
+                            </div>
+                            <div class="kosis-progress-bar">
+                                <div class="progress-segment float" id="kosisHousFloatBar" style="width: 50%;"></div>
+                                <div class="progress-segment fixed" id="kosisHousFixedBar" style="width: 50%;"></div>
+                            </div>
+                            <div class="kosis-sub-metrics">
+                                <span>시장금리연동: <strong id="kosisHousMarket">--%</strong></span>
+                                <span>수신금리연동: <strong id="kosisHousDeposit">--%</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- Mortgage Loans -->
+                        <div class="kosis-kpi-card">
+                            <div class="kosis-kpi-header">
+                                <span class="kosis-kpi-title"><i class="fa-solid fa-house-chimney"></i> 주택담보대출 금리 비중</span>
+                                <span class="kosis-kpi-badge">최신</span>
+                            </div>
+                            <div class="kosis-rate-compare">
+                                <div class="rate-box float">
+                                    <span class="rate-lbl">변동금리</span>
+                                    <span class="rate-val text-down" id="kosisMortFloating">--%</span>
+                                </div>
+                                <div class="rate-divider">vs</div>
+                                <div class="rate-box fixed">
+                                    <span class="rate-lbl">고정금리</span>
+                                    <span class="rate-val text-green" id="kosisMortFixed">--%</span>
+                                </div>
+                            </div>
+                            <div class="kosis-progress-bar">
+                                <div class="progress-segment float" id="kosisMortFloatBar" style="width: 50%;"></div>
+                                <div class="progress-segment fixed" id="kosisMortFixedBar" style="width: 50%;"></div>
+                            </div>
+                            <div class="kosis-sub-metrics">
+                                <span>시장금리연동: <strong id="kosisMortMarket">--%</strong></span>
+                                <span>수신금리연동: <strong id="kosisMortDeposit">--%</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- Corporate Loans -->
+                        <div class="kosis-kpi-card">
+                            <div class="kosis-kpi-header">
+                                <span class="kosis-kpi-title"><i class="fa-solid fa-building"></i> 기업대출 금리 비중</span>
+                                <span class="kosis-kpi-badge">최신</span>
+                            </div>
+                            <div class="kosis-rate-compare">
+                                <div class="rate-box float">
+                                    <span class="rate-lbl">변동금리</span>
+                                    <span class="rate-val text-down" id="kosisCorpFloating">--%</span>
+                                </div>
+                                <div class="rate-divider">vs</div>
+                                <div class="rate-box fixed">
+                                    <span class="rate-lbl">고정금리</span>
+                                    <span class="rate-val text-green" id="kosisCorpFixed">--%</span>
+                                </div>
+                            </div>
+                            <div class="kosis-progress-bar">
+                                <div class="progress-segment float" id="kosisCorpFloatBar" style="width: 50%;"></div>
+                                <div class="progress-segment fixed" id="kosisCorpFixedBar" style="width: 50%;"></div>
+                            </div>
+                            <div class="kosis-sub-metrics">
+                                <span>시장금리연동: <strong id="kosisCorpMarket">--%</strong></span>
+                                <span>수신금리연동: <strong id="kosisCorpDeposit">--%</strong></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Monthly Trend Chart Box -->
+                    <div class="kosis-chart-card">
+                        <div class="kosis-chart-header">
+                            <div>
+                                <h4><i class="fa-solid fa-chart-line"></i> 월별 변동금리 vs 고정금리 비중 추이 (%)</h4>
+                                <p>최근 3개 월간 가계·주택담보·기업대출의 금리 구조 변화</p>
+                            </div>
+                        </div>
+                        <div class="kosis-chart-canvas-box">
+                            <canvas id="kosisTrendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Filterable Table & Python Output Box -->
+                    <div class="kosis-detail-grid">
+                        <!-- Left: Data Table -->
+                        <div class="kosis-table-card">
+                            <div class="kosis-table-header">
+                                <h4><i class="fa-solid fa-table"></i> KOSIS 수집 원천 데이터 목록</h4>
+                                <div class="kosis-filter-buttons" id="kosisFilterGroup">
+                                    <button class="k-filter-btn active" data-cat="all">전체</button>
+                                    <button class="k-filter-btn" data-cat="가계대출">가계대출</button>
+                                    <button class="k-filter-btn" data-cat="주택담보대출">주택담보</button>
+                                    <button class="k-filter-btn" data-cat="기업대출">기업대출</button>
+                                </div>
+                            </div>
+                            <div class="table-container kosis-table-scroll">
+                                <table class="data-table" id="kosisDataTable">
+                                    <thead>
+                                        <tr>
+                                            <th>구분</th>
+                                            <th>항목명 (계정)</th>
+                                            <th>조사월</th>
+                                            <th>비중 (%)</th>
+                                            <th>단위</th>
+                                            <th>영문명</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="kosisTableBody">
+                                        <tr>
+                                            <td colspan="6" class="text-center">KOSIS 데이터를 로딩 중입니다...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Right: Execution Log / Console Preview Box -->
+                        <div class="kosis-console-card">
+                            <div class="console-header">
+                                <span><i class="fa-solid fa-terminal"></i> 파이썬 스크립트 실행 콘솔 (kosis_collector.py)</span>
+                                <span class="console-status"><span class="status-dot"></span> 정상 연동</span>
+                            </div>
+                            <div class="console-body" id="kosisConsoleBody">
+                                <div class="console-line"><span class="cmd-prompt">&gt;</span> python kosis_collector.py</div>
+                                <div class="console-line text-green"><span class="cmd-prompt">&gt;</span> 엑셀 파일 저장 완료!</div>
+                                <div class="console-line text-cyan"><span class="cmd-prompt">&gt;</span> 저장 위치: <span id="kosisConsolePath">C:\Users\USER\Desktop\AIAGENT_DA\LAST_PJT\kosis.xlsx</span></div>
+                                <div class="console-line text-muted"><span class="cmd-prompt">&gt;</span> [DataFrame shape: 54 rows x 17 columns]</div>
+                                <div class="console-preview-code">
+                                    <pre id="kosisConsolePreview">불러오는 중...</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Global Top 5 Cryptocurrencies (BTC · ETH · SOL · XRP · DOGE) 10-Year Interactive Web Application • Built with Python Flask & Chart.js</p>
+            <p class="disclaimer">본 시스템에서 제공하는 시세 정보 및 AI 예측값은 데이터 분석 및 머신러닝 연구 목적이며 투자 권유가 아닙니다.</p>
+        </footer>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <i class="fa-solid fa-circle-check toast-icon"></i>
+        <span id="toastMessage">업데이트 완료!</span>
+    </div>
+
+    <!-- Main JavaScript Logic -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
