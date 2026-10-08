@@ -420,6 +420,8 @@ def train_and_predict_decision_tree(coin_code="BTC"):
     }
 
 @app.route("/")
+@app.route("/api/index")
+@app.route("/api/index.py")
 def index():
     return render_template("index.html")
 

@@ -1,10 +1,9 @@
 {
-  "name": "261008_ML",
   "version": 2,
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/index"
     }
   ]
 }
